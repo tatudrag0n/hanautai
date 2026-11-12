@@ -144,6 +144,14 @@ export const LEGACY_MAP = {
   "Organ": "drawbar_organ",
   "Drums (Kit)": "Drums (TR-808)"
 };
+let _cacheStorage = null;
+function getCacheStorage() {
+  if (!_cacheStorage) {
+    try { _cacheStorage = new smplr.CacheStorage("hanautai"); } catch (e) { _cacheStorage = null; }
+  }
+  return _cacheStorage;
+}
+
 export function createInstrument(nameOrValue, ctx) {
   const legacy = LEGACY_MAP[nameOrValue];
   const lookup = legacy || nameOrValue;
@@ -151,12 +159,14 @@ export function createInstrument(nameOrValue, ctx) {
   if (!ctx) {
     ctx = (Tone.context && Tone.context.rawContext) ? Tone.context.rawContext : Tone.context;
   }
+  const cache = getCacheStorage();
+  const opts = cache ? { cacheStorage: cache } : {};
   // Prefer native context from a Tone node if possible (passed in)
   if ((entry && entry.type === "drum") || lookup === "Drums (TR-808)") {
-    return new smplr.DrumMachine(ctx, { kit: "TR-808" });
+    return new smplr.DrumMachine(ctx, { kit: "TR-808", ...opts });
   }
   const instName = entry ? entry.value : lookup;
-  return new smplr.Soundfont(ctx, { instrument: instName });
+  return new smplr.Soundfont(ctx, { instrument: instName, ...opts });
 }
 
 export function isDrum(nameOrValue) {

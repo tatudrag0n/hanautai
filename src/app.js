@@ -448,6 +448,13 @@ async function ensureAudio() {
   fx = new FxChain();
   try { await fx.reverb.ready; } catch (e) {}
   fx.set(state.effects);
+  // Preload instrument samples
+  state.tracks.forEach(t => { if (!t.synth) t.rebuildSynth(); t.connectTo(fx.input); });
+  try {
+    setStatus("楽器を読み込み中...");
+    await Promise.all(state.tracks.map(t => (t.synth && t.synth.ready) ? t.synth.ready : Promise.resolve()));
+    setStatus("待機中");
+  } catch (e) { setStatus("待機中"); }
   state.tracks.forEach(t => t.connectTo(fx.input));
   if (window.__pendingProject) {
     applyProject(window.__pendingProject);
