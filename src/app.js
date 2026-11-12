@@ -248,6 +248,8 @@ async function play() {
   if (state.tracks.length === 0) createTrack("acoustic_grand_piano");
   state.tracks.forEach(t => { if (!t.synth) t.rebuildSynth(); t.connectTo(fx.input); });
   state.isPlaying = true;
+  // Preload instrument samples to avoid first-note delay
+  try { await Promise.all(state.tracks.map(t => (t.synth && t.synth.ready) ? t.synth.ready : Promise.resolve())); } catch (e) {}
   rebuildAllParts();
   Tone.Transport.bpm.value = state.bpm;
   Tone.Transport.loop = state.loop.enabled;
@@ -440,6 +442,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 async function ensureAudio() {
   if (fx) return;
   await Tone.start();
+  try { Tone.context.lookAhead = 0; } catch (e) {}
   fx = new FxChain();
   try { await fx.reverb.ready; } catch (e) {}
   fx.set(state.effects);
