@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HanautAI — 鼻歌で作曲</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">HanautAI</span>
+        <span class="tagline">鼻歌だけで作曲</span>
+      </div>
+      <div class="transport">
+        <button id="btnPlay" class="transport-btn">▶ 再生</button>
+        <button id="btnStop" class="transport-btn">■ 停止</button>
+        <button id="btnRecord" class="transport-btn record">● 録音</button>
+        <label>BPM <input id="bpm" type="number" min="40" max="240" value="120" /></label>
+        <label>拍子
+          <select id="timesig">
+            <option value="4">4/4</option>
+            <option value="3">3/4</option>
+            <option value="6">6/8</option>
+          </select>
+        </label>
+      </div>
+      <div class="io">
+        <button id="btnNewProject">新規</button>
+        <button id="btnSave">保存</button>
+        <button id="btnLoad">読込</button>
+        <button id="btnExportMidi">MIDI出力</button>
+        <input id="fileInput" type="file" accept=".json,.mid" hidden />
+      </div>
+    </header>
+
+    <main class="main">
+      <aside class="sidebar left">
+        <section class="panel">
+          <h3>トラック</h3>
+          <div id="trackList" class="track-list"></div>
+          <button id="btnAddTrack" class="full">+ トラック追加</button>
+        </section>
+        <section class="panel">
+          <h3>選択トラック設定</h3>
+          <label>楽器
+            <select id="instrument"></select>
+          </label>
+          <label>音量 <input id="trackVol" type="range" min="0" max="1" step="0.01" value="0.8" /></label>
+          <label>パン <input id="trackPan" type="range" min="-1" max="1" step="0.01" value="0" /></label>
+          <div class="row">
+            <button id="btnMute">Mute</button>
+            <button id="btnSolo">Solo</button>
+            <button id="btnClearTrack">クリア</button>
+          </div>
+        </section>
+        <section class="panel">
+          <h3>録音設定</h3>
+          <label>入力ゲイン <input id="inputGain" type="range" min="0" max="3" step="0.01" value="1.2" /></label>
+          <label>検出感度 <input id="sensitivity" type="range" min="0.05" max="0.4" step="0.01" value="0.15" /></label>
+          <label>最小音長(秒) <input id="minNoteDur" type="number" min="0.05" max="1" step="0.01" value="0.12" /></label>
+          <div class="status" id="recStatus">待機中</div>
+        </section>
+      </aside>
+
+      <section class="editor">
+        <div class="piano-toolbar">
+          <label>グリッド
+            <select id="grid">
+              <option value="0.25">1/16</option>
+              <option value="0.5">1/8</option>
+              <option value="1" selected>1/4</option>
+              <option value="2">1/2</option>
+            </select>
+          </label>
+          <label>クオンタイズ強度 <input id="quantStrength" type="range" min="0" max="1" step="0.05" value="0.8" /></label>
+          <button id="btnQuantize">クオンタイズ</button>
+          <button id="btnQuantizeAll">全体クオンタイズ</button>
+          <label>ループ開始(拍) <input id="loopStart" type="number" min="0" step="0.25" value="0" /></label>
+          <label>ループ終了(拍) <input id="loopEnd" type="number" min="1" step="0.25" value="16" /></label>
+          <button id="btnSetLoop">ループ設定</button>
+          <button id="btnToggleLoop">ループ ON</button>
+          <label>ズーム <input id="zoom" type="range" min="20" max="120" value="48" /></label>
+        </div>
+        <div class="piano-wrap">
+          <canvas id="pianoCanvas"></canvas>
+        </div>
+        <div class="edit-hint">
+          クリック: ノート追加 / ドラッグ: 移動 / 右端ドラッグ: 長さ変更 / 右クリック: 削除 / ホイール: スクロール
+        </div>
+      </section>
+
+      <aside class="sidebar right">
+        <section class="panel">
+          <h3>エフェクト (マスター)</h3>
+          <label>リバーブ <input id="fxReverb" type="range" min="0" max="1" step="0.01" value="0.25" /></label>
+          <label>ディレイ <input id="fxDelay" type="range" min="0" max="1" step="0.01" value="0.15" /></label>
+          <label>コーラス <input id="fxChorus" type="range" min="0" max="1" step="0.01" value="0" /></label>
+          <label>EQ Low <input id="fxEqLow" type="range" min="-12" max="12" step="0.5" value="0" /></label>
+          <label>EQ Mid <input id="fxEqMid" type="range" min="-12" max="12" step="0.5" value="0" /></label>
+          <label>EQ High <input id="fxEqHigh" type="range" min="-12" max="12" step="0.5" value="0" /></label>
+          <label>ディストーション <input id="fxDist" type="range" min="0" max="1" step="0.01" value="0" /></label>
+          <label>コンプレッサー <input id="fxComp" type="range" min="0" max="1" step="0.01" value="0.3" /></label>
+        </section>
+        <section class="panel">
+          <h3>ノート編集</h3>
+          <div id="noteInfo" class="note-info">ノート未選択</div>
+          <label>ピッチ (MIDI) <input id="notePitch" type="number" min="0" max="127" /></label>
+          <label>開始 (拍) <input id="noteStart" type="number" min="0" step="0.25" /></label>
+          <label>長さ (拍) <input id="noteDur" type="number" min="0.0625" step="0.25" /></label>
+          <label>ベロシティ <input id="noteVel" type="range" min="0" max="1" step="0.01" /></label>
+          <button id="btnApplyNote">適用</button>
+          <button id="btnDeleteNote">削除</button>
+        </section>
+        <section class="panel">
+          <h3>解析</h3>
+          <canvas id="waveCanvas" width="260" height="80"></canvas>
+          <div id="pitchReadout" class="pitch-readout">--</div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "tone": "https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm"
+    }
+  }
+  </script>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

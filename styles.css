@@ -1,0 +1,53 @@
+:root {
+  --bg: #0f1220;
+  --panel: #171a2e;
+  --panel2: #1f2340;
+  --accent: #7c5cff;
+  --accent2: #00d4ff;
+  --text: #e7e9f3;
+  --muted: #9aa0bf;
+  --danger: #ff5c7a;
+  --grid: #2a2f55;
+  --note: #7c5cff;
+  --note-sel: #00d4ff;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text); font-family: "Segoe UI", "Hiragino Sans", sans-serif; overflow: hidden; }
+#app { display: flex; flex-direction: column; height: 100vh; }
+.topbar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--grid); flex-wrap: wrap; }
+.brand .logo { font-size: 20px; font-weight: 800; color: var(--accent2); }
+.brand .tagline { margin-left: 8px; color: var(--muted); font-size: 12px; }
+.transport, .io { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.transport label, .io label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.transport input, .transport select { width: 70px; }
+button { background: var(--panel2); color: var(--text); border: 1px solid var(--grid); border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 13px; }
+button:hover { border-color: var(--accent); }
+button.record { color: var(--danger); }
+button.full { width: 100%; }
+.main { display: flex; flex: 1; min-height: 0; }
+.sidebar { width: 290px; background: var(--panel); border-right: 1px solid var(--grid); padding: 10px; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.sidebar.right { border-right: none; border-left: 1px solid var(--grid); }
+.panel { background: var(--panel2); border-radius: 8px; padding: 10px; }
+.panel h3 { margin: 0 0 8px; font-size: 13px; color: var(--accent2); }
+.panel label { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); margin: 6px 0; gap: 8px; }
+.panel input[type=range] { flex: 1; }
+.panel input[type=number], .panel select { width: 90px; }
+.track-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.track-item { display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 6px; background: var(--bg); border: 1px solid var(--grid); cursor: pointer; font-size: 12px; }
+.track-item.active { border-color: var(--accent2); }
+.track-item .color { width: 10px; height: 10px; border-radius: 50%; }
+.track-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.track-item button { padding: 2px 6px; font-size: 11px; }
+.editor { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.piano-toolbar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--grid); flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.piano-toolbar label { display: flex; align-items: center; gap: 4px; }
+.piano-toolbar input[type=range] { width: 90px; }
+.piano-toolbar input[type=number] { width: 70px; }
+.piano-wrap { flex: 1; overflow: auto; position: relative; background: #0b0e1a; }
+#pianoCanvas { display: block; }
+.edit-hint { padding: 6px 12px; font-size: 11px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--grid); }
+.row { display: flex; gap: 6px; }
+.status { font-size: 12px; color: var(--accent2); margin-top: 6px; }
+.note-info { font-size: 12px; color: var(--muted); margin-bottom: 6px; min-height: 32px; }
+.pitch-readout { font-size: 16px; font-weight: 700; color: var(--accent2); text-align: center; margin-top: 4px; }
+#waveCanvas { width: 100%; height: 80px; background: #0b0e1a; border-radius: 4px; }
