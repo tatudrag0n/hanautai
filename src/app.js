@@ -228,7 +228,7 @@ function updateNoteInfo() {
 function startPlayheadAnim() {
   const loop = () => {
     if (!state.isPlaying) return;
-    const beat = Tone.Transport.position ? parsePosition(Tone.Transport.position) : 0;
+    const beat = (Tone.Transport.seconds || 0) * (state.bpm / 60);
     updatePlayhead(beat);
     animFrame = requestAnimationFrame(loop);
   };
@@ -444,7 +444,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 async function ensureAudio() {
   if (fx) return;
   await Tone.start();
-  try { Tone.context.lookAhead = 0.05; } catch (e) {}
+  try { Tone.context.lookAhead = 0; } catch (e) {}
   fx = new FxChain();
   try { await fx.reverb.ready; } catch (e) {}
   fx.set(state.effects);
