@@ -1,5 +1,5 @@
 import { state, newTrackId } from "./state.js";
-import { createInstrument, isDrum, LEGACY_MAP } from "./instruments.js";
+import { createInstrument, LEGACY_MAP } from "./instruments.js";
 import * as Tone from "tone";
 
 const TRACK_COLORS = ["#7c5cff","#00d4ff","#ff5c7a","#4ade80","#fbbf24","#f472b6","#38bdf8","#a78bfa"];
@@ -23,20 +23,9 @@ export class Track {
   }
 
   rebuildSynth() {
-    if (this.synth) { try { if (this.synth.output && this.synth.output.input) this.synth.output.input.disconnect(); } catch (e) {} }
-    this.synth = createInstrument(this.instrument, this.gain && this.gain.context ? this.gain.context.rawContext : null);
-    const connectOutput = () => {
-      try {
-        if (this.synth.output && this.synth.output.input && this.gain && this.gain.input) {
-          this.synth.output.input.connect(this.gain.input);
-        }
-      } catch (e) { console.warn("connect failed", e); }
-    };
-    if (this.synth.ready && typeof this.synth.ready.then === "function") {
-      this.synth.ready.then(connectOutput).catch(() => {});
-    } else {
-      connectOutput();
-    }
+    if (this.synth) { try { this.synth.dispose(); } catch (e) {} }
+    this.synth = createInstrument(this.instrument);
+    this.synth.connect(this.gain);
     this.gain.connect(this.panner);
   }
 
@@ -62,16 +51,8 @@ export class Track {
       const anySolo = state.tracks.some(t => t.solo);
       if (anySolo && !this.solo) return;
       const durSec = ev.dur * (60 / state.bpm);
-      const vel = Math.max(1, Math.round(ev.vel * 127));
       try {
-        if (isDrum(this.instrument)) {
-          const groups = (typeof this.synth.getGroupNames === "function") ? this.synth.getGroupNames() : [];
-          const midiPitch = ev.midiPitch || 60;
-          const g = groups.length ? groups[midiPitch % groups.length] : "kick";
-          this.synth.start({ name: g, time, velocity: vel });
-        } else {
-          this.synth.start({ note: ev.note, duration: durSec, time, velocity: vel });
-        }
+        this.synth.triggerAttackRelease(ev.note, durSec, time, ev.vel);
       } catch (e) { console.warn("play failed", e); }
     }, events);
     this.part.loop = true;
