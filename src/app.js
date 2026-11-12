@@ -247,6 +247,7 @@ async function play() {
   await ensureAudio();
   if (state.tracks.length === 0) createTrack("acoustic_grand_piano");
   state.tracks.forEach(t => { if (!t.synth) t.rebuildSynth(); t.connectTo(fx.input); });
+  state.isPlaying = true;
   rebuildAllParts();
   Tone.Transport.bpm.value = state.bpm;
   Tone.Transport.loop = state.loop.enabled;
@@ -255,7 +256,6 @@ async function play() {
     Tone.Transport.loopEnd = state.loop.end;
   }
   Tone.Transport.start();
-  state.isPlaying = true;
   $("btnPlay").textContent = "❚❚ 一時停止";
   startPlayheadAnim();
 }
