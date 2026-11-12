@@ -257,6 +257,8 @@ async function play() {
     Tone.Transport.loopStart = state.loop.start;
     Tone.Transport.loopEnd = state.loop.end;
   }
+  Tone.Transport.stop();
+  Tone.Transport.position = 0;
   Tone.Transport.start();
   $("btnPlay").textContent = "❚❚ 一時停止";
   startPlayheadAnim();
@@ -442,7 +444,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 async function ensureAudio() {
   if (fx) return;
   await Tone.start();
-  try { Tone.context.lookAhead = 0; } catch (e) {}
+  try { Tone.context.lookAhead = 0.05; } catch (e) {}
   fx = new FxChain();
   try { await fx.reverb.ready; } catch (e) {}
   fx.set(state.effects);
