@@ -19,14 +19,14 @@ export class Recorder {
   async start() {
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     await this.ctx.resume();
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } });
     this.source = this.ctx.createMediaStreamSource(this.stream);
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 1024;
     this.analyser.smoothingTimeConstant = 0.0;
     this.source.connect(this.analyser);
     // input gain
-    this.detector = new YinDetector(this.ctx.sampleRate);
+    this.detector = new YinDetector(this.ctx.sampleRate, 80, 500);
     this.buffer = new Float32Array(this.analyser.fftSize);
     this.frames = [];
     this._loop();
@@ -61,13 +61,14 @@ export class Recorder {
 
   // Convert recorded frames into notes for a track
   buildNotes(opts = {}) {
-    const sensitivity = opts.sensitivity ?? 0.15;
-    const minDur = opts.minNoteDur ?? 0.12;
-    const gain = opts.inputGain ?? 1.2;
+    const sensitivity = opts.sensitivity ?? 0.2;
+    const minDur = opts.minNoteDur ?? 0.15;
+    const gain = opts.inputGain ?? 1.0;
+    const minFrames = opts.minFrames ?? 6;
     // filter frames by confidence & rms
     const valid = this.frames.map(f => {
       const confOk = f.confidence >= sensitivity;
-      const rmsOk = f.rms * gain >= 0.01;
+      const rmsOk = f.rms * gain >= 0.015;
       const midiRound = confOk && rmsOk && f.midi > 0 ? Math.round(f.midi) : -1;
       return { ...f, midiRound };
     });
@@ -78,7 +79,7 @@ export class Recorder {
       const f = valid[i];
       if (f.midiRound >= 0) {
         if (!current || current.midi !== f.midiRound) {
-          if (current) this._finalizeNote(current, minDur, notes);
+          if (current) this._finalizeNote(current, minDur, minFrames, notes);
           current = { midi: f.midiRound, start: f.time, end: f.time, rmsSum: f.rms, count: 1 };
         } else {
           current.end = f.time;
@@ -86,10 +87,10 @@ export class Recorder {
           current.count++;
         }
       } else {
-        if (current) { this._finalizeNote(current, minDur, notes); current = null; }
+        if (current) { this._finalizeNote(current, minDur, minFrames, notes); current = null; }
       }
     }
-    if (current) this._finalizeNote(current, minDur, notes);
+    if (current) this._finalizeNote(current, minDur, minFrames, notes);
     // convert times to beats relative to recording start
     const t0 = this.frames.length ? this.frames[0].time : 0;
     // We'll store start as seconds since first frame; caller converts? We'll convert to beats here using state bpm at build time.
@@ -108,11 +109,11 @@ export class Recorder {
     return out;
   }
 
-  _finalizeNote(cur, minDur, notes) {
-    // frame interval approx; ensure duration at least one frame
+  _finalizeNote(cur, minDur, minFrames, notes) {
     const frameInterval = this.frames.length > 1 ? (this.frames[1].time - this.frames[0].time) : 1/60;
     cur.end = Math.max(cur.end, cur.start + frameInterval);
     cur.rmsAvg = cur.rmsSum / cur.count;
+    if (cur.count < (minFrames || 1)) return; // ignore short noise
     notes.push(cur);
   }
 }

@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
 <title>HanautAI — 鼻歌で作曲</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
@@ -57,9 +59,9 @@
         </section>
         <section class="panel">
           <h3>録音設定</h3>
-          <label>入力ゲイン <input id="inputGain" type="range" min="0" max="3" step="0.01" value="1.2" /></label>
-          <label>検出感度 <input id="sensitivity" type="range" min="0.05" max="0.4" step="0.01" value="0.15" /></label>
-          <label>最小音長(秒) <input id="minNoteDur" type="number" min="0.05" max="1" step="0.01" value="0.12" /></label>
+          <label>入力ゲイン <input id="inputGain" type="range" min="0" max="3" step="0.01" value="1.0" /></label>
+          <label>検出感度 <input id="sensitivity" type="range" min="0.05" max="0.4" step="0.01" value="0.2" /></label>
+          <label>最小音長(秒) <input id="minNoteDur" type="number" min="0.05" max="1" step="0.01" value="0.15" /></label>
           <div class="status" id="recStatus">待機中</div>
         </section>
       </aside>

@@ -278,7 +278,8 @@ async function toggleRecord() {
     const notes = recorder.buildNotes({
       sensitivity: +$("sensitivity").value,
       minNoteDur: +$("minNoteDur").value,
-      inputGain: +$("inputGain").value
+      inputGain: +$("inputGain").value,
+      minFrames: 6
     });
     await recorder.stop();
     recorder = null;
