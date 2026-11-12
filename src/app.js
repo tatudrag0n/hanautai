@@ -64,9 +64,9 @@ function syncTrackControls() {
 function populateInstruments() {
   const sel = $("instrument");
   sel.innerHTML = "";
-  INSTRUMENTS.forEach(name => {
+  INSTRUMENTS.forEach(item => {
     const o = document.createElement("option");
-    o.value = name; o.textContent = name;
+    o.value = item.value; o.textContent = item.label;
     sel.appendChild(o);
   });
 }
@@ -85,7 +85,7 @@ function bindUI() {
   $("timesig").addEventListener("change", (e) => { state.timeSig = +e.target.value; renderPiano(); });
 
   $("btnAddTrack").addEventListener("click", () => {
-    const t = createTrack("Piano");
+    const t = createTrack("acoustic_grand_piano");
     if (fx) t.connectTo(fx.input);
     state.activeTrackId = t.id;
     renderTrackList();
@@ -245,7 +245,7 @@ function parsePosition(pos) {
 
 async function play() {
   await ensureAudio();
-  if (state.tracks.length === 0) createTrack("Piano");
+  if (state.tracks.length === 0) createTrack("acoustic_grand_piano");
   state.tracks.forEach(t => { if (!t.synth) t.rebuildSynth(); t.connectTo(fx.input); });
   rebuildAllParts();
   Tone.Transport.bpm.value = state.bpm;
@@ -339,7 +339,7 @@ function newProject() {
   if (!confirm("新規プロジェクトを作成しますか？")) return;
   state.tracks.forEach(t => removeTrack(t.id));
   state.tracks = [];
-  const t = createTrack("Piano");
+  const t = createTrack("acoustic_grand_piano");
   if (fx) t.connectTo(fx.input);
   state.activeTrackId = t.id;
   state.loop = { enabled: true, start: 0, end: 16 };
@@ -399,7 +399,7 @@ function applyProject(data) {
     });
   }
   if (state.tracks.length === 0) {
-    const t = createTrack("Piano");
+    const t = createTrack("acoustic_grand_piano");
     if (fx) t.connectTo(fx.input);
   }
   state.activeTrackId = state.tracks[0]?.id || null;
@@ -428,7 +428,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   setOnSelect(() => { updateNoteInfo(); });
 
   bindUI();
-  const t = createTrack("Piano");
+  const t = createTrack("acoustic_grand_piano");
   if (fx) t.connectTo(fx.input);
   state.activeTrackId = t.id;
   renderTrackList();
