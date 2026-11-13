@@ -250,6 +250,7 @@ async function play() {
   state.isPlaying = true;
   // Preload instrument samples to avoid first-note delay
   try { await Promise.all(state.tracks.map(t => (t.synth && t.synth.ready) ? t.synth.ready : Promise.resolve())); } catch (e) {}
+  try { await Tone.loaded(); } catch (e) {}
   rebuildAllParts();
   Tone.Transport.bpm.value = state.bpm;
   Tone.Transport.loop = state.loop.enabled;
@@ -452,6 +453,7 @@ async function ensureAudio() {
   try {
     setStatus("楽器を読み込み中...");
     await Promise.all(state.tracks.map(t => (t.synth && t.synth.ready) ? t.synth.ready : Promise.resolve()));
+    await Tone.loaded();
     setStatus("待機中");
   } catch (e) { setStatus("待機中"); }
   state.tracks.forEach(t => t.connectTo(fx.input));
