@@ -258,7 +258,7 @@ async function play() {
     Tone.Transport.loopStart = state.loop.start;
     Tone.Transport.loopEnd = state.loop.end;
   }
-  Tone.Transport.start(0);
+  Tone.Transport.start();
   state.tracks.forEach(t => { if (t.part) t.part.start(0); });
   $("btnPlay").textContent = "❚❚ 一時停止";
   startPlayheadAnim();
