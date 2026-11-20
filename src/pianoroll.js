@@ -30,10 +30,10 @@ export function initPianoRoll(canvasEl, containerEl) {
 
 export function resizeCanvas() {
   if (!canvas || !container) return;
-  const beatsVisible = 64; // min width
   const totalBeats = Math.max(64, (state.loop.end || 16) + 16);
-  const w = Math.max(container.clientWidth, totalBeats * state.zoom + LEFT + 40);
+  const w = Math.min(16384, Math.ceil(Math.max(container.clientWidth, totalBeats * state.zoom + LEFT + 40)));
   const h = (MAX_PITCH - MIN_PITCH + 1) * KEY_H + 20;
+  if (canvas.width === w && canvas.height === h) return;
   canvas.width = w;
   canvas.height = h;
   canvas.style.width = w + "px";
@@ -184,9 +184,10 @@ export function render() {
   }
   // vertical beat lines
   const totalBeats = (w - LEFT) / state.zoom;
+  const beatsPerBar = state.timeSig === 6 ? 3 : state.timeSig;
   for (let b = 0; b <= totalBeats; b++) {
     const x = xOfBeat(b);
-    const isBar = (b % state.timeSig === 0);
+    const isBar = (b % beatsPerBar === 0);
     ctx.strokeStyle = isBar ? "#4a5090" : "#1f2548";
     ctx.lineWidth = isBar ? 1.2 : 0.6;
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
@@ -194,7 +195,7 @@ export function render() {
     if (isBar) {
       ctx.fillStyle = "#9aa0bf";
       ctx.font = "10px sans-serif";
-      ctx.fillText(String(b / state.timeSig + 1), x + 2, 10);
+      ctx.fillText(String(b / beatsPerBar + 1), x + 2, 10);
     }
   }
 

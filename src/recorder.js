@@ -1,5 +1,5 @@
 import { YinDetector, freqToMidi, rms } from "./pitch.js";
-import { state, secondsToBeats } from "./state.js";
+import { state } from "./state.js";
 import { newNoteId } from "./state.js";
 
 export class Recorder {
@@ -13,23 +13,33 @@ export class Recorder {
     this.rafId = null;
     this.frames = []; // {time, midi, conf, rms}
     this.onFrame = null; // callback
-    this.onStatus = null;
+    this.cancelled = false;
+    this.started = false;
   }
 
   async start() {
-    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    await this.ctx.resume();
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } });
-    this.source = this.ctx.createMediaStreamSource(this.stream);
-    this.analyser = this.ctx.createAnalyser();
-    this.analyser.fftSize = 1024;
-    this.analyser.smoothingTimeConstant = 0.0;
-    this.source.connect(this.analyser);
-    // input gain
-    this.detector = new YinDetector(this.ctx.sampleRate, 80, 500);
-    this.buffer = new Float32Array(this.analyser.fftSize);
-    this.frames = [];
-    this._loop();
+    if (this.started || this.cancelled) throw new Error("Recorder cannot be restarted");
+    this.started = true;
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error("HTTPS または localhost が必要です。");
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this.ctx = ctx;
+      await ctx.resume();
+      if (this.cancelled) return;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } });
+      if (this.cancelled) { stream.getTracks().forEach(track => track.stop()); return; }
+      this.stream = stream;
+      this.source = ctx.createMediaStreamSource(stream);
+      this.analyser = ctx.createAnalyser();
+      this.analyser.fftSize = 1024;
+      this.source.connect(this.analyser);
+      this.detector = new YinDetector(ctx.sampleRate, 80, 500);
+      this.buffer = new Float32Array(this.analyser.fftSize);
+      this._loop();
+    } catch (err) {
+      await this.stop();
+      throw err;
+    }
   }
 
   _loop() {
@@ -49,14 +59,17 @@ export class Recorder {
   }
 
   async stop() {
-    if (this.rafId) cancelAnimationFrame(this.rafId);
+    this.cancelled = true;
+    if (this.rafId !== null) cancelAnimationFrame(this.rafId);
     this.rafId = null;
-    if (this.stream) this.stream.getTracks().forEach(t => t.stop());
+    this.stream?.getTracks().forEach(t => t.stop());
     this.stream = null;
-    if (this.ctx) { try { await this.ctx.close(); } catch (e) {} }
+    const ctx = this.ctx;
     this.ctx = null;
     this.analyser = null;
     this.source = null;
+    this.onFrame = null;
+    if (ctx) { try { await ctx.close(); } catch (err) { console.warn("AudioContext close failed", err); } }
   }
 
   // Convert recorded frames into notes for a track
@@ -93,8 +106,8 @@ export class Recorder {
     if (current) this._finalizeNote(current, minDur, minFrames, notes);
     // convert times to beats relative to recording start
     const t0 = this.frames.length ? this.frames[0].time : 0;
-    // We'll store start as seconds since first frame; caller converts? We'll convert to beats here using state bpm at build time.
-    const bpm = state.bpm;
+    const bpm = opts.bpm ?? state.bpm;
+    const secondsToBeats = seconds => seconds * bpm / 60;
     const out = notes.map(n => {
       const startSec = n.start - t0;
       const durSec = Math.max(minDur, n.end - n.start + (1/60));

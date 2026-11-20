@@ -1,5 +1,3 @@
-import { state, beatsToSeconds } from "./state.js";
-
 export function quantizeValue(val, grid) {
   return Math.round(val / grid) * grid;
 }
@@ -14,11 +12,11 @@ export function quantizeNote(note, grid, strength = 1) {
   };
 }
 
-export function quantizeTrack(track, grid, strength, all = false) {
+export function quantizeTrack(track, grid, strength) {
   track.notes = track.notes.map(n => quantizeNote(n, grid, strength));
 }
 
-// micro-timing correction: snap notes within window (ms) to grid
+// micro-timing correction: snap notes within window (beats) to grid
 export function microCorrect(track, grid, windowBeats = 0.0625) {
   track.notes = track.notes.map(n => {
     const nearest = quantizeValue(n.start, grid);

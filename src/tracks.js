@@ -1,5 +1,5 @@
 import { state, newTrackId } from "./state.js";
-import { createInstrument, LEGACY_MAP } from "./instruments.js";
+import { createInstrument } from "./instruments.js";
 import * as Tone from "tone";
 
 const TRACK_COLORS = ["#7c5cff","#00d4ff","#ff5c7a","#4ade80","#fbbf24","#f472b6","#38bdf8","#a78bfa"];
@@ -16,38 +16,58 @@ export class Track {
     this.solo = false;
     this.notes = []; // {id, pitch, start(beats), duration(beats), velocity}
     this.synth = null;
+    this.output = null;
     this.gain = new Tone.Gain(this.volume);
     this.panner = new Tone.Panner(this.pan);
     this.part = null;
-    this.rebuildSynth();
-  }
-
-  rebuildSynth() {
-    if (this.synth) { try { this.synth.dispose(); } catch (e) {} }
-    this.synth = createInstrument(this.instrument);
-    this.synth.connect(this.gain);
     this.gain.connect(this.panner);
   }
 
+  rebuildSynth() {
+    this.clearSynth();
+    this.synth = createInstrument(this.instrument);
+    this.synth.connect(this.gain);
+  }
+
+  clearSynth() {
+    this.synth?.dispose();
+    this.synth = null;
+  }
+
   connectTo(fxInput) {
+    if (this.output === fxInput) return;
+    this.disconnect();
     this.panner.connect(fxInput);
+    this.output = fxInput;
   }
 
   disconnect() {
-    try { this.panner.disconnect(); } catch (e) {}
+    this.panner.disconnect();
+    this.output = null;
   }
 
-  rebuildPart(transport) {
-    if (this.part) { try { this.part.dispose(); } catch (e) {} this.part = null; }
+  clearPart() {
+    this.part?.dispose();
+    this.part = null;
+  }
+
+  dispose() {
+    this.clearPart();
+    this.clearSynth();
+    this.gain.dispose();
+    this.panner.dispose();
+  }
+
+  rebuildPart() {
+    this.clearPart();
     const events = this.notes.map(n => ({
-      time: n.start,
+      time: beatTime(n.start),
       note: Tone.Frequency(n.pitch, "midi").toNote(),
-      midiPitch: n.pitch,
       dur: n.duration,
       vel: n.velocity
     }));
     this.part = new Tone.Part((time, ev) => {
-      if (this.mute) return;
+      if (this.mute || !this.synth || this.synth.loaded === false) return;
       const anySolo = state.tracks.some(t => t.solo);
       if (anySolo && !this.solo) return;
       const durSec = ev.dur * (60 / state.bpm);
@@ -55,10 +75,7 @@ export class Track {
         this.synth.triggerAttackRelease(ev.note, durSec, time, ev.vel);
       } catch (e) { console.warn("play failed", e); }
     }, events);
-    this.part.loop = true;
-    this.part.loopStart = state.loop.start;
-    this.part.loopEnd = state.loop.end;
-    if (state.isPlaying) this.part.start(0);
+    this.part.start(0);
   }
 
   addNote(note) {
@@ -80,14 +97,13 @@ export class Track {
   }
 
   static fromJSON(o) {
-    const t = new Track(o.name, LEGACY_MAP[o.instrument] || o.instrument);
+    const t = new Track(o.name, o.instrument);
     t.id = o.id;
     t.color = o.color;
     t.volume = o.volume; t.pan = o.pan; t.mute = o.mute; t.solo = o.solo;
     t.notes = o.notes.map(n => ({...n}));
     t.gain.gain.value = t.volume;
     t.panner.pan.value = t.pan;
-    t.rebuildSynth();
     return t;
   }
 }
@@ -106,15 +122,15 @@ export function activeTrack() {
 export function removeTrack(id) {
   const idx = state.tracks.findIndex(t => t.id === id);
   if (idx < 0) return;
-  const t = state.tracks[idx];
-  t.disconnect();
-  try { t.synth.dispose(); } catch (e) {}
-  try { t.gain.dispose(); t.panner.dispose(); } catch (e) {}
-  if (t.part) try { t.part.dispose(); } catch (e) {}
+  state.tracks[idx].dispose();
   state.tracks.splice(idx, 1);
   if (state.activeTrackId === id) state.activeTrackId = state.tracks[0]?.id || null;
 }
 
 export function rebuildAllParts() {
   state.tracks.forEach(t => t.rebuildPart());
+}
+
+export function beatTime(beat) {
+  return `${Math.round(beat * Tone.Transport.PPQ)}i`;
 }
