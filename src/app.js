@@ -1,23 +1,27 @@
 import * as Tone from "tone";
-import { state, beatsToSeconds, secondsToBeats, newTrackId } from "./state.js";
-import { createTrack, activeTrack, removeTrack, rebuildAllParts, Track } from "./tracks.js";
-import { INSTRUMENTS } from "./instruments.js";
+import { state } from "./state.js";
+import { createTrack, activeTrack, removeTrack, rebuildAllParts, Track, beatTime } from "./tracks.js";
+import { INSTRUMENTS } from "./instrument-catalog.js";
 import { FxChain } from "./effects.js";
 import { Recorder } from "./recorder.js";
 import { quantizeTrack, microCorrect } from "./quantize.js";
 import { initPianoRoll, render as renderPiano, updatePlayhead, setOnNotesChanged, setOnSelect, getSelectedNote } from "./pianoroll.js";
+import { parseProject, validateLoop, defaultEffects, defaultLoop } from "./project.js";
 import { exportMIDI } from "./midi.js";
 
 let fx = null;
 let recorder = null;
-let playheadTimer = null;
+let audioReady;
+let playRequest = 0;
+let startingPlayback = false;
+let recordRequest = 0;
+let loadRequest = 0;
+let recordingPhase = "idle";
 let animFrame = null;
 
 const $ = (id) => document.getElementById(id);
 
 function setStatus(msg) { $("recStatus").textContent = msg; }
-
-function trackColorDot(t) { return `<span class="color" style="background:${t.color}"></span>`; }
 
 function renderTrackList() {
   const el = $("trackList");
@@ -25,10 +29,19 @@ function renderTrackList() {
   state.tracks.forEach(t => {
     const div = document.createElement("div");
     div.className = "track-item" + (t.id === state.activeTrackId ? " active" : "");
-    div.innerHTML = `${trackColorDot(t)}<span class="name">${t.name}</span>
-      <button data-act="mute">${t.mute ? "M" : "m"}</button>
-      <button data-act="solo">${t.solo ? "S" : "s"}</button>
-      <button data-act="del">x</button>`;
+    const color = document.createElement("span");
+    color.className = "color";
+    color.style.backgroundColor = t.color;
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = t.name;
+    div.append(color, name);
+    for (const [action, label] of [["mute", t.mute ? "M" : "m"], ["solo", t.solo ? "S" : "s"], ["del", "x"]]) {
+      const button = document.createElement("button");
+      button.dataset.act = action;
+      button.textContent = label;
+      div.append(button);
+    }
     div.addEventListener("click", (e) => {
       if (e.target.tagName === "BUTTON") return;
       state.activeTrackId = t.id;
@@ -46,7 +59,7 @@ function renderTrackList() {
         syncTrackControls();
         renderTrackList();
         renderPiano();
-        if (state.isPlaying) rebuildAllParts();
+        if (act === "del" && startingPlayback) stop();
       });
     });
     el.appendChild(div);
@@ -80,13 +93,15 @@ function bindUI() {
 
   $("bpm").addEventListener("change", (e) => {
     state.bpm = Math.max(40, Math.min(240, +e.target.value));
-    if (state.isPlaying) { stop(); play(); }
+    e.target.value = state.bpm;
+    Tone.Transport.bpm.value = state.bpm;
   });
   $("timesig").addEventListener("change", (e) => { state.timeSig = +e.target.value; renderPiano(); });
 
   $("btnAddTrack").addEventListener("click", () => {
+    if (startingPlayback) stop();
     const t = createTrack("acoustic_grand_piano");
-    if (fx) t.connectTo(fx.input);
+    if (state.isPlaying) { t.rebuildSynth(); t.connectTo(fx.input); }
     state.activeTrackId = t.id;
     renderTrackList();
     syncTrackControls();
@@ -96,10 +111,9 @@ function bindUI() {
   $("instrument").addEventListener("change", (e) => {
     const t = activeTrack();
     if (!t) return;
+    if (startingPlayback) stop();
     t.instrument = e.target.value;
-    t.rebuildSynth();
-    t.connectTo(fx.input);
-    if (state.isPlaying) rebuildAllParts();
+    if (t.synth) t.rebuildSynth();
     renderTrackList();
   });
   $("trackVol").addEventListener("input", (e) => {
@@ -140,22 +154,16 @@ function bindUI() {
     renderPiano(); if (state.isPlaying) rebuildAllParts();
   });
 
-  $("loopStart").addEventListener("change", (e) => { state.loop.start = +e.target.value; });
-  $("loopEnd").addEventListener("change", (e) => { state.loop.end = +e.target.value; });
   $("btnSetLoop").addEventListener("click", () => {
-    state.loop.start = +$("loopStart").value;
-    state.loop.end = +$("loopEnd").value;
-    if (state.loop.end <= state.loop.start) state.loop.end = state.loop.start + 1;
-    rebuildAllParts();
+    try {
+      state.loop = validateLoop({ ...state.loop, start: $("loopStart").valueAsNumber, end: $("loopEnd").valueAsNumber });
+      syncLoop();
+      renderPiano();
+    } catch (err) { setStatus(err.message); }
   });
   $("btnToggleLoop").addEventListener("click", () => {
     state.loop.enabled = !state.loop.enabled;
-    $("btnToggleLoop").textContent = state.loop.enabled ? "ループ ON" : "ループ OFF";
-    Tone.Transport.loop = state.loop.enabled;
-    if (state.loop.enabled) {
-      Tone.Transport.loopStart = state.loop.start;
-      Tone.Transport.loopEnd = state.loop.end;
-    }
+    syncLoop();
   });
 
   $("zoom").addEventListener("input", (e) => { state.zoom = +e.target.value; renderPiano(); });
@@ -173,14 +181,15 @@ function bindUI() {
   $("btnNewProject").addEventListener("click", newProject);
   $("btnSave").addEventListener("click", saveProject);
   $("btnLoad").addEventListener("click", () => $("fileInput").click());
-  $("btnExportMidi").addEventListener("click", exportMIDI);
+  $("btnExportMidi").addEventListener("click", () => {
+    try { exportMIDI(); } catch (err) { setStatus(err.message); }
+  });
   $("fileInput").addEventListener("change", loadProject);
 
   // wave canvas handled in recorder callbacks
 }
 
 function updateEffects() {
-  if (!fx) return;
   state.effects.reverb = +$("fxReverb").value;
   state.effects.delay = +$("fxDelay").value;
   state.effects.chorus = +$("fxChorus").value;
@@ -189,14 +198,14 @@ function updateEffects() {
   state.effects.eqHigh = +$("fxEqHigh").value;
   state.effects.dist = +$("fxDist").value;
   state.effects.comp = +$("fxComp").value;
-  fx.set(state.effects);
+  fx?.set(state.effects);
 }
 
 function applyNoteEdit() {
   const sel = getSelectedNote();
   if (!sel) return;
   const note = sel.note;
-  note.pitch = Math.max(0, Math.min(127, +$("notePitch").value));
+  note.pitch = Math.max(0, Math.min(127, Math.round(+$("notePitch").value)));
   note.start = Math.max(0, +$("noteStart").value);
   note.duration = Math.max(0.0625, +$("noteDur").value);
   note.velocity = Math.max(0, Math.min(1, +$("noteVel").value));
@@ -228,100 +237,149 @@ function updateNoteInfo() {
 function startPlayheadAnim() {
   const loop = () => {
     if (!state.isPlaying) return;
-    const beat = (Tone.Transport.seconds || 0) * (state.bpm / 60);
+    const beat = Tone.Transport.ticks / Tone.Transport.PPQ;
     updatePlayhead(beat);
     animFrame = requestAnimationFrame(loop);
   };
   animFrame = requestAnimationFrame(loop);
 }
-function parsePosition(pos) {
-  // "bars:beats:sixteenths"
-  const parts = String(pos).split(":");
-  const bars = +parts[0] || 0;
-  const beats = +parts[1] || 0;
-  const six = +parts[2] || 0;
-  return bars * state.timeSig + beats + six / 4;
+function syncLoop() {
+  $("btnToggleLoop").textContent = state.loop.enabled ? "ループ ON" : "ループ OFF";
+  Tone.Transport.setLoopPoints(beatTime(state.loop.start), beatTime(state.loop.end));
+  Tone.Transport.loop = state.loop.enabled;
 }
 
 async function play() {
-  await ensureAudio();
-  if (state.tracks.length === 0) createTrack("acoustic_grand_piano");
-  state.tracks.forEach(t => { if (!t.synth) t.rebuildSynth(); t.connectTo(fx.input); });
-  state.isPlaying = true;
-  // Preload instrument samples to avoid first-note delay
-  try { await Promise.all(state.tracks.map(t => (t.synth && t.synth.ready) ? t.synth.ready : Promise.resolve())); } catch (e) {}
-  try { await Tone.loaded(); } catch (e) {}
-  rebuildAllParts();
-  Tone.Transport.bpm.value = state.bpm;
-  Tone.Transport.loop = state.loop.enabled;
-  if (state.loop.enabled) {
-    Tone.Transport.loopStart = state.loop.start;
-    Tone.Transport.loopEnd = state.loop.end;
+  if (state.isPlaying || startingPlayback) { stop(); return; }
+  const request = ++playRequest;
+  startingPlayback = true;
+  $("btnPlay").textContent = "■ 読み込みを中止";
+  try {
+    await ensureAudio();
+    if (request !== playRequest) return;
+    if (!state.tracks.length) { stop(); return; }
+    const tracks = [...state.tracks];
+    for (const t of tracks) {
+      if (!t.synth) t.rebuildSynth();
+      t.connectTo(fx.input);
+    }
+    setStatus("楽器を読み込み中...");
+    const results = await Promise.all(tracks.map(t => t.synth.ready));
+    if (request !== playRequest) return;
+    if (results.includes(false)) {
+      results.forEach((ready, index) => { if (!ready) tracks[index].clearSynth(); });
+      throw new Error("音源を取得できません。ネットワーク接続を確認してください。");
+    }
+    Tone.Transport.bpm.value = state.bpm;
+    syncLoop();
+    rebuildAllParts();
+    Tone.Transport.start();
+    state.isPlaying = true;
+    $("btnPlay").textContent = "■ 停止";
+    if (recordingPhase === "idle") setStatus("再生中");
+    startPlayheadAnim();
+  } catch (err) {
+    if (request === playRequest) { stop(); setStatus(`再生失敗: ${err.message}`); }
+  } finally {
+    if (request === playRequest) startingPlayback = false;
   }
-  Tone.Transport.start();
-  state.tracks.forEach(t => { if (t.part) t.part.start(0); });
-  $("btnPlay").textContent = "❚❚ 一時停止";
-  startPlayheadAnim();
 }
 
 function stop() {
+  ++playRequest;
+  startingPlayback = false;
   Tone.Transport.stop();
   Tone.Transport.position = 0;
   state.isPlaying = false;
-  if (animFrame) cancelAnimationFrame(animFrame);
+  for (const track of state.tracks) {
+    track.clearPart();
+    if (track.synth?.releaseAll) track.synth.releaseAll();
+    else track.synth?.triggerRelease?.();
+  }
+  if (animFrame !== null) cancelAnimationFrame(animFrame);
   animFrame = null;
   $("btnPlay").textContent = "▶ 再生";
   renderPiano();
+  if (recordingPhase === "idle") setStatus("待機中");
+}
+
+function resetRecordingUI() {
+  recordingPhase = "idle";
+  state.isRecording = false;
+  $("btnRecord").disabled = false;
+  $("btnRecord").textContent = "● 録音";
+  $("pitchReadout").textContent = "--";
+}
+
+function cancelRecording() {
+  ++recordRequest;
+  const current = recorder;
+  recorder = null;
+  if (current) void current.stop();
+  resetRecordingUI();
 }
 
 async function toggleRecord() {
-  if (state.isRecording) {
-    // stop recording
-    state.isRecording = false;
+  if (recordingPhase === "starting" || recordingPhase === "stopping") return;
+  if (recordingPhase === "recording") {
+    const request = recordRequest;
+    const current = recorder;
+    const target = current.target;
+    recordingPhase = "stopping";
+    $("btnRecord").disabled = true;
     setStatus("処理中...");
-    const notes = recorder.buildNotes({
-      sensitivity: +$("sensitivity").value,
-      minNoteDur: +$("minNoteDur").value,
-      inputGain: +$("inputGain").value,
-      minFrames: 6
-    });
-    await recorder.stop();
-    recorder = null;
-    // quantize micro
-    const t = activeTrack();
-    if (t) {
-      const withIds = notes.map(n => ({ ...n, id: n.id || String(Math.random()) }));
-      t.notes.push(...withIds);
-      microCorrect(t, state.grid);
+    try {
+      await current.stop();
+      if (request !== recordRequest) return;
+      if (!state.tracks.includes(target)) throw new Error("録音先のトラックが削除されました。");
+      const notes = current.buildNotes({
+        sensitivity: +$("sensitivity").value,
+        minNoteDur: +$("minNoteDur").value,
+        inputGain: +$("inputGain").value,
+        bpm: current.bpm
+      });
+      const take = { notes };
+      microCorrect(take, state.grid);
+      target.notes = target.notes.concat(take.notes);
       renderPiano();
       if (state.isPlaying) rebuildAllParts();
+      setStatus(`録音完了: ${notes.length} ノート`);
+    } catch (err) {
+      if (request === recordRequest) setStatus(`録音失敗: ${err.message}`);
+    } finally {
+      if (request === recordRequest) { recorder = null; resetRecordingUI(); }
     }
-    setStatus(`録音完了: ${notes.length} ノート`);
-    $("btnRecord").textContent = "● 録音";
     return;
   }
-  // start
+  const target = activeTrack();
+  if (!target) { setStatus("録音先のトラックを追加してください。"); return; }
+  const request = ++recordRequest;
+  const current = new Recorder();
+  current.target = target;
+  current.bpm = state.bpm;
+  recorder = current;
+  recordingPhase = "starting";
+  $("btnRecord").disabled = true;
+  setStatus("マイクの許可を待っています...");
   try {
-    await ensureAudio();
-    recorder = new Recorder();
-    await recorder.start();
+    await current.start();
+    if (request !== recordRequest) return;
+    recordingPhase = "recording";
     state.isRecording = true;
+    $("btnRecord").disabled = false;
     $("btnRecord").textContent = "■ 停止";
     setStatus("録音中...");
-    recorder.onFrame = (f) => {
-      // pitch readout
-      if (f.confidence >= +$("sensitivity").value && f.midi > 0) {
-        const noteName = midiName(Math.round(f.midi));
-        $("pitchReadout").textContent = `${noteName} (${f.freq.toFixed(1)} Hz)`;
-      } else {
-        $("pitchReadout").textContent = "--";
-      }
-      // wave canvas
-      drawWave(recorder.buffer);
+    current.onFrame = (f) => {
+      $("pitchReadout").textContent = f.confidence >= +$("sensitivity").value && f.midi > 0
+        ? `${midiName(Math.round(f.midi))} (${f.freq.toFixed(1)} Hz)` : "--";
+      drawWave(current.buffer);
     };
   } catch (err) {
-    setStatus("マイク取得失敗: " + err.message);
-    state.isRecording = false;
+    if (request === recordRequest) {
+      recorder = null;
+      resetRecordingUI();
+      setStatus(`マイク取得失敗: ${err.message}`);
+    }
   }
 }
 
@@ -342,20 +400,13 @@ function drawWave(buf) {
 }
 function newProject() {
   if (!confirm("新規プロジェクトを作成しますか？")) return;
-  state.tracks.forEach(t => removeTrack(t.id));
-  state.tracks = [];
-  const t = createTrack("acoustic_grand_piano");
-  if (fx) t.connectTo(fx.input);
-  state.activeTrackId = t.id;
-  state.loop = { enabled: true, start: 0, end: 16 };
-  renderTrackList();
-  syncTrackControls();
-  renderPiano();
+  ++loadRequest;
+  applyProject({ bpm: 120, timeSig: 4, grid: 1, loop: defaultLoop(), effects: defaultEffects(), tracks: [] });
 }
 
 function saveProject() {
   const data = {
-    bpm: state.bpm, timeSig: state.timeSig, grid: state.grid,
+    version: 1, bpm: state.bpm, timeSig: state.timeSig, grid: state.grid,
     loop: state.loop, effects: state.effects,
     tracks: state.tracks.map(t => t.toJSON())
   };
@@ -363,7 +414,7 @@ function saveProject() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = "hanautai.json"; a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
   // also localStorage
   try { localStorage.setItem("hanautai_project", JSON.stringify(data)); } catch (e) {}
 }
@@ -371,47 +422,52 @@ function saveProject() {
 function loadProject(e) {
   const file = e.target.files[0];
   if (!file) return;
+  const request = ++loadRequest;
   const reader = new FileReader();
   reader.onload = () => {
+    if (request !== loadRequest) return;
     try {
       const data = JSON.parse(reader.result);
       applyProject(data);
     } catch (err) { alert("読込失敗: " + err.message); }
   };
+  reader.onerror = () => {
+    if (request === loadRequest) alert("ファイルを読み込めませんでした。");
+  };
   reader.readAsText(file);
   e.target.value = "";
 }
-// We'll implement applyProject synchronously using imported Track? tracks module exports Track class? It doesn't export Track. Let's adjust: export Track from tracks.js.
-// Append runtime initialization and helpers
 function applyProject(data) {
-  state.tracks.forEach(t => removeTrack(t.id));
-  state.tracks = [];
-  state.bpm = data.bpm || 120;
-  state.timeSig = data.timeSig || 4;
-  state.grid = data.grid || 1;
-  state.loop = data.loop || { enabled: true, start: 0, end: 16 };
-  state.effects = data.effects || state.effects;
-  $("bpm").value = state.bpm;
-  $("timesig").value = state.timeSig;
-  $("grid").value = state.grid;
-  $("loopStart").value = state.loop.start;
-  $("loopEnd").value = state.loop.end;
-  if (data.tracks) {
-    data.tracks.forEach(o => {
-      const t = Track.fromJSON(o);
-      state.tracks.push(t);
-      if (fx) t.connectTo(fx.input);
-    });
+  const project = parseProject(data);
+  const nextTracks = [];
+  try {
+    for (const track of project.tracks) nextTracks.push(Track.fromJSON(track));
+    if (!nextTracks.length) nextTracks.push(new Track("Track 1"));
+    if (fx) for (const track of nextTracks) track.connectTo(fx.input);
+  } catch (err) {
+    for (const track of nextTracks) track.dispose();
+    throw err;
   }
-  if (state.tracks.length === 0) {
-    const t = createTrack("acoustic_grand_piano");
-    if (fx) t.connectTo(fx.input);
+  stop();
+  cancelRecording();
+  for (const track of state.tracks) track.dispose();
+  const { bpm, timeSig, grid, loop, effects } = project;
+  Object.assign(state, { bpm, timeSig, grid, loop, effects, tracks: nextTracks,
+    activeTrackId: nextTracks[0].id, selectedNote: null });
+  for (const key of ["bpm", "timeSig", "grid"]) $(key === "timeSig" ? "timesig" : key).value = state[key];
+  $("loopStart").value = loop.start;
+  $("loopEnd").value = loop.end;
+  for (const [key, value] of Object.entries(effects)) {
+    $(`fx${key[0].toUpperCase()}${key.slice(1)}`).value = value;
   }
-  state.activeTrackId = state.tracks[0]?.id || null;
-  updateEffects();
+  Tone.Transport.bpm.value = bpm;
+  syncLoop();
+  fx?.set(effects);
   renderTrackList();
   syncTrackControls();
+  updateNoteInfo();
   renderPiano();
+  setStatus("待機中");
 }
 
 function midiName(m) {
@@ -419,12 +475,7 @@ function midiName(m) {
   return names[m % 12] + (Math.floor(m / 12) - 1);
 }
 
-window.addEventListener("DOMContentLoaded", async () => {
-  try {
-    const raw = localStorage.getItem("hanautai_project");
-    if (raw) window.__pendingProject = JSON.parse(raw);
-  } catch (e) {}
-
+window.addEventListener("DOMContentLoaded", () => {
   initPianoRoll($("pianoCanvas"), document.querySelector(".piano-wrap"));
   setOnNotesChanged(() => {
     if (state.isPlaying) rebuildAllParts();
@@ -433,33 +484,27 @@ window.addEventListener("DOMContentLoaded", async () => {
   setOnSelect(() => { updateNoteInfo(); });
 
   bindUI();
-  const t = createTrack("acoustic_grand_piano");
-  if (fx) t.connectTo(fx.input);
-  state.activeTrackId = t.id;
+  try {
+    const raw = localStorage.getItem("hanautai_project");
+    if (raw) { applyProject(JSON.parse(raw)); return; }
+  } catch (err) { setStatus(`保存済みプロジェクトを開けません: ${err.message}`); }
+  createTrack("acoustic_grand_piano");
   renderTrackList();
   syncTrackControls();
   renderPiano();
 });
 
-async function ensureAudio() {
-  if (fx) return;
-  await Tone.start();
-  try { Tone.context.lookAhead = 0; } catch (e) {}
-  fx = new FxChain();
-  try { await fx.reverb.ready; } catch (e) {}
-  fx.set(state.effects);
-  // Preload instrument samples
-  state.tracks.forEach(t => { if (!t.synth) t.rebuildSynth(); t.connectTo(fx.input); });
-  try {
-    setStatus("楽器を読み込み中...");
-    await Promise.all(state.tracks.map(t => (t.synth && t.synth.ready) ? t.synth.ready : Promise.resolve()));
-    await Tone.loaded();
-    setStatus("待機中");
-  } catch (e) { setStatus("待機中"); }
-  state.tracks.forEach(t => t.connectTo(fx.input));
-  if (window.__pendingProject) {
-    applyProject(window.__pendingProject);
-    window.__pendingProject = null;
-  }
+function ensureAudio() {
+  audioReady ??= Tone.start().then(async () => {
+    const chain = new FxChain();
+    try {
+      await chain.reverb.ready;
+      chain.set(state.effects);
+      fx = chain;
+    } catch (err) {
+      chain.dispose();
+      throw err;
+    }
+  }).catch(err => { audioReady = null; throw err; });
+  return audioReady;
 }
-window.ensureAudio = ensureAudio;

@@ -65,7 +65,7 @@
           <label>入力ゲイン <input id="inputGain" type="range" min="0" max="3" step="0.01" value="1.0" /></label>
           <label>検出感度 <input id="sensitivity" type="range" min="0.05" max="0.4" step="0.01" value="0.2" /></label>
           <label>最小音長(秒) <input id="minNoteDur" type="number" min="0.05" max="1" step="0.01" value="0.15" /></label>
-          <div class="status" id="recStatus">待機中</div>
+          <div class="status" id="recStatus" role="status">待機中</div>
         </section>
       </aside>
 
@@ -127,10 +127,11 @@
     </main>
   </div>
 
+  <script src="./node_modules/tone/build/Tone.js"></script>
   <script type="importmap">
   {
     "imports": {
-      "tone": "https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm"
+      "tone": "./src/tone.js"
     }
   }
   </script>
