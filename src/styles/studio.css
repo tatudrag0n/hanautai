@@ -2748,3 +2748,30 @@ select {
     min-width: min(270px, 88vw);
   }
 }
+
+/* ---- Auto Mix button ---- */
+.auto-mix-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 12px;
+  border-radius: 3px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.auto-mix-btn:active {
+  filter: brightness(1.15);
+}
+@media (max-width: 820px) {
+  .auto-mix-btn {
+    min-height: 38px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+  }
+}

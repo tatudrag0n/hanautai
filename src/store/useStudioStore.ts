@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { audioEngine } from "../audio/audioEngine";
+import { buildAutoMixProject } from "../audio/autoMix";
 import {
   defaultMaster,
   defaultPitchSettings,
@@ -529,6 +530,27 @@ export function useStudioStore() {
     },
     [project.tracks, updateTrackPitch],
   );
+
+  const autoMix = useCallback(() => {
+    const result = buildAutoMixProject(project);
+    if (!result) {
+      setStatusMessage("おまかせMIX: 音声クリップのあるトラックがありません");
+      return;
+    }
+    updateProject(() => result.project, true);
+    // Key detection for analyzed vocal tracks (also snaps blobs + reprocesses).
+    const analyzed = new Set(result.analyzedVocalTrackIds);
+    for (const id of result.analyzedVocalTrackIds) autoDetectKey(id);
+    // Reprocess pitch for vocal tracks without analysis (correction changed).
+    for (const id of result.vocalTrackIds) {
+      if (!analyzed.has(id)) {
+        updateTrack(id, (t) => t, { recordHistory: false, reprocessPitch: true });
+      }
+    }
+    setStatusMessage(
+      `おまかせMIX完了 — ${result.summary}（気に入らなければ「元に戻す」で取り消せます）`,
+    );
+  }, [project, updateProject, autoDetectKey, updateTrack]);
 
   // ---- Transport Actions ----
 
@@ -1093,6 +1115,7 @@ export function useStudioStore() {
     updateClipDrawnPitch,
     splitBlobAtTime,
     autoDetectKey,
+    autoMix,
     togglePlay,
     stopTransport,
     seekTransport,

@@ -9,6 +9,7 @@ import {
   Sliders,
   Upload,
   Volume2,
+  Wand2,
 } from "lucide-react";
 import { CHANNEL_FX_PRESETS } from "./audio/presets";
 import { EffectsRackView } from "./components/effects/EffectsRackView";
@@ -80,6 +81,7 @@ export const App: React.FC = () => {
     updateClipDrawnPitch,
     splitBlobAtTime,
     autoDetectKey,
+    autoMix,
     togglePlay,
     stopTransport,
     seekTransport,
@@ -346,6 +348,14 @@ export const App: React.FC = () => {
         </div>
 
         <div className="nav-right">
+          <button
+            type="button"
+            className="auto-mix-btn"
+            onClick={autoMix}
+            title="全トラックを解析して、音量バランス・EQ・コンプ・ピッチ補正・マスターまで自動で整えます（元に戻すで取り消し可）"
+          >
+            <Wand2 size={13} /> おまかせMIX
+          </button>
           <span className="status-pill" title={statusMessage}>
             {statusMessage}
           </span>
