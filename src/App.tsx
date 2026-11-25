@@ -8,6 +8,7 @@ import {
   ChevronUp,
   Sliders,
   Upload,
+  Volume2,
 } from "lucide-react";
 import { CHANNEL_FX_PRESETS } from "./audio/presets";
 import { EffectsRackView } from "./components/effects/EffectsRackView";
@@ -496,6 +497,51 @@ export const App: React.FC = () => {
           />
         </section>
       </main>
+
+      {/* Mobile bottom navigation (phones only, shown via CSS) */}
+      <nav className="mobile-nav" aria-label="画面切り替え">
+        <button
+          type="button"
+          className={`mobile-nav-btn ${!consoleExpanded && topTab === "pitch" ? "active" : ""}`}
+          onClick={() => {
+            setConsoleExpanded(false);
+            setTopTab("pitch");
+          }}
+        >
+          <Activity size={20} />
+          <span>ピッチ</span>
+        </button>
+        <button
+          type="button"
+          className={`mobile-nav-btn ${!consoleExpanded && topTab === "effects" ? "active" : ""}`}
+          onClick={() => {
+            setConsoleExpanded(false);
+            setTopTab("effects");
+          }}
+        >
+          <Sliders size={20} />
+          <span>エフェクト</span>
+        </button>
+        <button
+          type="button"
+          className={`mobile-nav-btn ${!consoleExpanded && topTab === "timeline" ? "active" : ""}`}
+          onClick={() => {
+            setConsoleExpanded(false);
+            setTopTab("timeline");
+          }}
+        >
+          <AlignLeft size={20} />
+          <span>タイムライン</span>
+        </button>
+        <button
+          type="button"
+          className={`mobile-nav-btn ${consoleExpanded ? "active" : ""}`}
+          onClick={() => setConsoleExpanded(true)}
+        >
+          <Volume2 size={20} />
+          <span>ミキサー</span>
+        </button>
+      </nav>
 
       {isDraggingFile && (
         <div className="file-drop-overlay">

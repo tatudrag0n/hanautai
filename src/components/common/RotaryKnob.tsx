@@ -1,4 +1,5 @@
 import React, { useCallback, useRef } from "react";
+import { useIsMobile } from "../../hooks/useIsMobile";
 
 interface RotaryKnobProps {
   label: string;
@@ -29,6 +30,7 @@ export const RotaryKnob: React.FC<RotaryKnobProps> = ({
   onChange,
   onCommit,
 }) => {
+  const isMobile = useIsMobile();
   const dragRef = useRef<{ startY: number; startVal: number } | null>(null);
 
   const clampAndSnap = useCallback(
@@ -113,6 +115,28 @@ export const RotaryKnob: React.FC<RotaryKnobProps> = ({
     : Number.isInteger(step)
       ? `${Math.round(value)}`
       : value.toFixed(1);
+
+  // On phones a rotary drag is hard to hit and hard to read, so the same
+  // value binding is presented as a wide horizontal slider instead.
+  if (isMobile) {
+    return (
+      <div className="knob-slider" onDoubleClick={handleDoubleClick}>
+        {label && <span className="knob-label">{label}</span>}
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          aria-label={label}
+          onChange={(e) => onChange(clampAndSnap(Number(e.target.value)))}
+          onPointerUp={() => onCommit?.()}
+          onKeyUp={() => onCommit?.()}
+        />
+        <span className="knob-val">{displayText}</span>
+      </div>
+    );
+  }
 
   return (
     <div

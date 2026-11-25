@@ -2135,3 +2135,458 @@ select {
   border-radius: 6px;
   font-size: 11px;
 }
+
+/* ---- Mobile Navigation (hidden on desktop) ---- */
+.mobile-nav {
+  display: none;
+}
+
+/* Direct-manipulation surfaces must not scroll the page while dragging. */
+.rotary-knob,
+.fader-track,
+.xy-pad,
+.pitch-canvas-container,
+.eq-canvas,
+.comp-canvas,
+.sat-canvas {
+  touch-action: none;
+}
+
+/* ============================================================
+   Mobile layout (phones, <= 820px)
+   One full-screen view at a time, switched by the bottom tab
+   bar. Desktop keeps the split editor + console layout.
+   ============================================================ */
+@media (max-width: 820px) {
+  html,
+  body,
+  #root {
+    font-size: 14px;
+  }
+
+  .studio-root {
+    height: 100dvh;
+  }
+
+  /* -- Top bar: brand + actions on row 1, big transport on row 2 -- */
+  .topbar {
+    height: auto;
+    min-height: 0;
+    flex-wrap: wrap;
+    padding: 6px 8px;
+    gap: 6px 8px;
+  }
+  .topbar-brand {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .brand-text strong {
+    font-size: 12px;
+  }
+  .brand-subtitle {
+    font-size: 11px;
+  }
+  .topbar-transport {
+    order: 3;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .topbar-actions {
+    flex: 0 1 auto;
+    gap: 6px;
+  }
+  .t-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 12px;
+    font-size: 13px;
+    justify-content: center;
+  }
+  .t-btn.play,
+  .t-btn.rec {
+    padding: 0 18px;
+  }
+  .action-btn,
+  .export-wav-btn {
+    min-height: 40px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+  /* Keep the export split reachable but compact: hide its text label. */
+  .topbar-actions .action-btn span {
+    display: none;
+  }
+  .lcd-display {
+    font-size: 13px;
+    padding: 6px 10px;
+  }
+  .bpm-box input {
+    height: 40px;
+    width: 56px;
+    font-size: 16px;
+  }
+  .dropdown-menu {
+    min-width: min(260px, 88vw);
+    max-width: 88vw;
+  }
+  .dropdown-menu button {
+    min-height: 44px;
+    font-size: 13px;
+  }
+  .dropdown-menu.right {
+    right: 0;
+    left: auto;
+  }
+
+  /* -- Workspace nav: track switcher only (tabs move to bottom bar) -- */
+  .workspace-nav {
+    padding: 6px 8px;
+    gap: 8px;
+  }
+  .nav-tabs {
+    display: none;
+  }
+  .active-track-switcher {
+    flex: 1;
+    justify-content: center;
+  }
+  .active-track-switcher .mini-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .track-select-box {
+    flex: 1;
+    max-width: none;
+    height: 40px;
+  }
+  .track-select-box select {
+    font-size: 14px;
+    height: 100%;
+  }
+  .nav-right .mini-btn {
+    display: none;
+  }
+  .status-pill {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* -- Main area: single pane, no splitter, console only when open -- */
+  .deck-splitter {
+    display: none;
+  }
+  .top-deck {
+    min-height: 0;
+  }
+  .bottom-console {
+    display: none;
+    min-height: 0;
+  }
+  .bottom-console.expanded {
+    display: flex;
+    flex: 1;
+  }
+
+  /* -- Bottom tab bar -- */
+  .mobile-nav {
+    display: flex;
+    background: var(--bg-1);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+    flex-shrink: 0;
+  }
+  .mobile-nav-btn {
+    flex: 1;
+    min-height: 56px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .mobile-nav-btn.active {
+    color: var(--accent);
+  }
+
+  /* -- Shared touch sizing -- */
+  .mini-btn {
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+  .tool-chip,
+  .preset-pill,
+  .chain-node {
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+  .compact-select {
+    min-height: 40px;
+    font-size: 12px;
+  }
+  .compact-select select,
+  select,
+  input[type="text"],
+  input[type="number"] {
+    font-size: 16px; /* prevents focus auto-zoom on mobile browsers */
+  }
+  input[type="range"] {
+    height: 36px;
+  }
+  .inline-slider {
+    flex-wrap: wrap;
+  }
+  .inline-slider input[type="range"] {
+    width: 130px;
+  }
+  .hint-text {
+    white-space: normal;
+  }
+
+  /* Knobs become labeled sliders (component switches on this breakpoint) */
+  .knob-slider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    min-width: 150px;
+    flex: 1 1 150px;
+  }
+  .knob-slider .knob-label {
+    font-size: 11px;
+    min-width: 52px;
+    white-space: normal;
+  }
+  .knob-slider input[type="range"] {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--accent);
+  }
+  .knob-slider .knob-val {
+    font-size: 12px;
+    min-width: 40px;
+    text-align: right;
+  }
+
+  /* -- Pitch studio -- */
+  .pitch-studio {
+    overflow-y: auto;
+  }
+  .pitch-topbar {
+    padding: 8px;
+    gap: 8px;
+  }
+  .pitch-section {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .pitch-knobs-row {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    width: 100%;
+  }
+  .pitch-toolbar {
+    flex-wrap: wrap;
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  .pitch-canvas-shell {
+    min-height: 320px;
+  }
+  .ab-segmented button {
+    height: 38px;
+    font-size: 12px;
+  }
+  .pitch-scroll-slider {
+    width: 100%;
+  }
+
+  /* -- Effects rack -- */
+  .effects-rack-view {
+    overflow-y: auto;
+  }
+  .fx-chain-header {
+    padding: 8px;
+  }
+  .fx-signal-chain {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    max-width: 100%;
+  }
+  .fx-editor-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+    gap: 10px;
+  }
+  .fx-knobs-bar {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+  }
+  .space-editor-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .xy-pad {
+    min-height: 180px;
+  }
+  .eq-canvas-wrap {
+    min-height: 200px;
+  }
+
+  /* -- Timeline -- */
+  .timeline-toolbar {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 8px;
+  }
+  .timeline-scroll {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* -- Mixer console (full-screen view via the bottom tab bar) -- */
+  .mixer-strips-scroll {
+    padding: 8px;
+    gap: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .channel-strip {
+    width: 132px;
+    min-width: 132px;
+  }
+  .strip-msr-row button,
+  .strip-pitch-pill,
+  .strip-open-fx-btn {
+    min-height: 36px;
+    font-size: 11px;
+  }
+  .strip-del-btn {
+    min-width: 32px;
+    min-height: 32px;
+  }
+  .add-track-strip {
+    min-width: 96px;
+  }
+
+  /* -- Modals become sheets that fit the phone -- */
+  .modal-card {
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+  }
+  .guide-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .file-drop-box {
+    width: calc(100vw - 32px);
+  }
+}
+
+/* ---- Mobile fixes round 2 (after first screenshot review) ---- */
+@media (max-width: 820px) {
+  /* Top bar actions were overflowing off the right edge: shrink the
+     WAV export button to icon-only and let the brand truncate. */
+  .topbar-brand {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .brand-mark {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+  .brand-text strong {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .topbar-actions {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  .export-wav-btn.main span {
+    display: none;
+  }
+  .export-wav-btn.main {
+    padding: 0 10px;
+  }
+
+  /* Transport: drop the BAR readout on phones to save a wrap row. */
+  .lcd-sep,
+  .lcd-bar {
+    display: none;
+  }
+  .topbar-transport {
+    gap: 4px;
+  }
+  .t-btn {
+    min-height: 40px;
+  }
+
+  /* Mixer: master strip slimmer so two channel strips stay visible. */
+  .master-strip {
+    width: 118px;
+    min-width: 118px;
+    padding: 6px 5px;
+    margin: 6px 6px 6px 0;
+  }
+  .master-strip .master-controls-row {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* FX stage header: keep title and actions from crushing each other. */
+  .fx-stage-subhead {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .fx-stage-subhead .stage-title-wrap {
+    flex: 1 1 150px;
+    min-width: 0;
+  }
+  .fx-stage-subhead button {
+    min-height: 38px;
+    white-space: nowrap;
+  }
+}
+
+/* ---- Mobile fixes round 3 (master strip + pitch HUD) ---- */
+@media (max-width: 820px) {
+  .master-strip .knob-slider {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+  .master-strip .knob-slider .knob-label {
+    min-width: 0;
+  }
+  .master-strip .master-controls-row {
+    width: 100%;
+  }
+  .master-badges {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* The pitch canvas HUD hint collapsed into a 1-character column. */
+  .hud-note {
+    display: none;
+  }
+  .pitch-canvas-hud {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
