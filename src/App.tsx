@@ -21,6 +21,25 @@ import { useStudioStore } from "./store/useStudioStore";
 
 export const App: React.FC = () => {
   const store = useStudioStore();
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    try {
+      return localStorage.getItem("hanautai-theme") === "light"
+        ? "light"
+        : "dark";
+    } catch {
+      return "dark";
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem("hanautai-theme", theme);
+    } catch {
+      /* storage unavailable */
+    }
+  }, [theme]);
+
   const [showHelp, setShowHelp] = useState(false);
   const [consoleHeight, setConsoleHeight] = useState(326);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
@@ -203,6 +222,10 @@ export const App: React.FC = () => {
         micLiveAutotune={micLiveAutotune}
         canUndo={canUndo}
         canRedo={canRedo}
+        theme={theme}
+        onToggleTheme={() =>
+          setTheme((t) => (t === "dark" ? "light" : "dark"))
+        }
         onRenameProject={(name) =>
           updateProject((prev) => ({ ...prev, name }), true)
         }

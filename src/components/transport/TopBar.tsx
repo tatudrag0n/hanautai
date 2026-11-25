@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  AudioWaveform,
   ChevronDown,
   Download,
   FilePlus2,
@@ -7,6 +8,7 @@ import {
   Headphones,
   HelpCircle,
   Mic,
+  Moon,
   Pause,
   Play,
   Redo2,
@@ -16,6 +18,7 @@ import {
   SkipBack,
   Sparkles,
   Square,
+  Sun,
   Undo2,
   Upload,
   Volume2,
@@ -36,6 +39,8 @@ interface TopBarProps {
   micLiveAutotune: boolean;
   canUndo: boolean;
   canRedo: boolean;
+  theme: "dark" | "light";
+  onToggleTheme: () => void;
   onRenameProject: (name: string) => void;
   onTogglePlay: () => void;
   onStop: () => void;
@@ -70,6 +75,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   micLiveAutotune,
   canUndo,
   canRedo,
+  theme,
+  onToggleTheme,
   onRenameProject,
   onTogglePlay,
   onStop,
@@ -149,7 +156,9 @@ export const TopBar: React.FC<TopBarProps> = ({
     <header className="topbar">
       {/* Left: Brand & Editable Project Name */}
       <div className="topbar-brand">
-        <div className="brand-mark">HM</div>
+        <div className="brand-mark">
+          <AudioWaveform size={17} strokeWidth={2.2} />
+        </div>
         <div className="brand-text">
           <strong>HanautAI Mix Studio</strong>
           {editingTitle ? (
@@ -460,6 +469,15 @@ export const TopBar: React.FC<TopBarProps> = ({
             </div>
           )}
         </div>
+
+        <button
+          type="button"
+          className="t-btn icon-only"
+          onClick={onToggleTheme}
+          title={theme === "dark" ? "ライトモードに切り替え" : "ダークモードに切り替え"}
+        >
+          {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
 
         <button
           type="button"

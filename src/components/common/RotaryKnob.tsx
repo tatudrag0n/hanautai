@@ -153,14 +153,14 @@ export const RotaryKnob: React.FC<RotaryKnobProps> = ({
           cx={cx}
           cy={cy}
           r={r * 0.74}
-          fill="#181c26"
-          stroke="#2b3245"
+          fill="var(--bg-3)"
+          stroke="var(--border-hi)"
           strokeWidth={1.5}
         />
         <path
           d={bgPath}
           fill="none"
-          stroke="#262c3d"
+          stroke="var(--border)"
           strokeWidth={3}
           strokeLinecap="round"
         />
@@ -178,7 +178,7 @@ export const RotaryKnob: React.FC<RotaryKnobProps> = ({
           y1={cy}
           x2={cx + (dot.x - cx) * 0.72}
           y2={cy + (dot.y - cy) * 0.72}
-          stroke="#f8fafc"
+          stroke="var(--text)"
           strokeWidth={2}
           strokeLinecap="round"
         />
