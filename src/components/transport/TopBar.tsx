@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Headphones,
   HelpCircle,
+  Menu,
   Mic,
   Moon,
   Pause,
@@ -105,7 +106,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(projectName);
-  const [openMenu, setOpenMenu] = useState<"project" | "export" | null>(null);
+  const [openMenu, setOpenMenu] = useState<"main" | null>(null);
 
   useEffect(() => {
     const close = () => setOpenMenu(null);
@@ -301,7 +302,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
       </div>
 
-      {/* Right: Undo, Import, Project Menu & WAV Export */}
+      {/* Right: Undo/Redo & one unified Menu dropdown */}
       <div className="topbar-actions">
         <div className="transport-cluster">
           <button
@@ -324,121 +325,29 @@ export const TopBar: React.FC<TopBarProps> = ({
           </button>
         </div>
 
-        <button
-          type="button"
-          className="action-btn"
-          onClick={() => audioInputRef.current?.click()}
-          title="音声ファイル (WAV / MP3 / OGG / FLAC等) を取り込む"
-        >
-          <Upload size={13} />
-          <span>音声読込</span>
-        </button>
-        <input
-          ref={audioInputRef}
-          type="file"
-          accept="audio/*"
-          multiple
-          hidden
-          onChange={(e) => {
-            if (e.target.files) onImportAudio(e.target.files);
-            e.target.value = "";
-          }}
-        />
-
-        {/* Project Dropdown */}
         <div className="menu-anchor" onPointerDown={(e) => e.stopPropagation()}>
           <button
             type="button"
-            className={`action-btn ${openMenu === "project" ? "active" : ""}`}
-            onClick={() =>
-              setOpenMenu((m) => (m === "project" ? null : "project"))
-            }
+            className={`action-btn menu-main-btn ${openMenu === "main" ? "active" : ""}`}
+            onClick={() => setOpenMenu((m) => (m === "main" ? null : "main"))}
           >
-            <FolderOpen size={13} />
-            <span>プロジェクト</span>
+            <Menu size={14} />
+            <span>メニュー</span>
             <ChevronDown size={12} />
           </button>
-          {openMenu === "project" && (
-            <div className="dropdown-menu">
+          {openMenu === "main" && (
+            <div className="dropdown-menu right main-menu">
               <button
                 type="button"
                 onClick={() => {
                   setOpenMenu(null);
-                  onSaveProject();
+                  audioInputRef.current?.click();
                 }}
               >
-                <Save size={13} /> ファイルに保存 (.hanautai.json)
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpenMenu(null);
-                  projectInputRef.current?.click();
-                }}
-              >
-                <FolderOpen size={13} /> ファイルから開く
+                <Upload size={13} /> 音声ファイルを読み込む
               </button>
               <div className="menu-divider" />
-              <button
-                type="button"
-                onClick={() => {
-                  setOpenMenu(null);
-                  if (confirm("現在の編集を破棄してデモスタジオを復元しますか？")) {
-                    onResetDemo();
-                  }
-                }}
-              >
-                <RotateCcw size={13} /> デモソングに戻す
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpenMenu(null);
-                  if (confirm("現在の編集を破棄して空の新規プロジェクトを作成しますか？")) {
-                    onNewEmpty();
-                  }
-                }}
-              >
-                <FilePlus2 size={13} /> 空の新規プロジェクト
-              </button>
-            </div>
-          )}
-        </div>
-        <input
-          ref={projectInputRef}
-          type="file"
-          accept=".json,.hanautai.json"
-          hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) onLoadProject(f);
-            e.target.value = "";
-          }}
-        />
-
-        {/* Split WAV Export Button */}
-        <div className="menu-anchor split-export" onPointerDown={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            className="export-wav-btn main"
-            onClick={() => onExportWav("mix")}
-            title="全トラック・ピッチ補正・エフェクト込みで高品質WAV書き出し"
-          >
-            <Download size={13} />
-            <span>WAV書き出し</span>
-          </button>
-          <button
-            type="button"
-            className="export-wav-btn caret"
-            onClick={() =>
-              setOpenMenu((m) => (m === "export" ? null : "export"))
-            }
-            title="書き出しオプション"
-          >
-            <ChevronDown size={13} />
-          </button>
-          {openMenu === "export" && (
-            <div className="dropdown-menu right">
+              <div className="menu-label">WAV書き出し</div>
               <button
                 type="button"
                 onClick={() => {
@@ -466,27 +375,93 @@ export const TopBar: React.FC<TopBarProps> = ({
               >
                 <Mic size={13} /> 「{selectedTrackName}」単体ステム (.wav)
               </button>
+              <div className="menu-divider" />
+              <div className="menu-label">プロジェクト</div>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenMenu(null);
+                  onSaveProject();
+                }}
+              >
+                <Save size={13} /> ファイルに保存 (.hanautai.json)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenMenu(null);
+                  projectInputRef.current?.click();
+                }}
+              >
+                <FolderOpen size={13} /> ファイルから開く
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenMenu(null);
+                  if (confirm("現在の編集を破棄してデモスタジオを復元しますか？")) {
+                    onResetDemo();
+                  }
+                }}
+              >
+                <RotateCcw size={13} /> デモソングに戻す
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenMenu(null);
+                  if (confirm("現在の編集を破棄して空の新規プロジェクトを作成しますか？")) {
+                    onNewEmpty();
+                  }
+                }}
+              >
+                <FilePlus2 size={13} /> 空の新規プロジェクト
+              </button>
+              <div className="menu-divider" />
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenMenu(null);
+                  onToggleTheme();
+                }}
+              >
+                {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}{" "}
+                {theme === "dark" ? "ライトモードに切り替え" : "ダークモードに切り替え"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenMenu(null);
+                  onOpenHelp();
+                }}
+              >
+                <HelpCircle size={13} /> 操作ガイド & ショートカット
+              </button>
             </div>
           )}
         </div>
-
-        <button
-          type="button"
-          className="t-btn icon-only"
-          onClick={onToggleTheme}
-          title={theme === "dark" ? "ライトモードに切り替え" : "ダークモードに切り替え"}
-        >
-          {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-        </button>
-
-        <button
-          type="button"
-          className="t-btn icon-only"
-          onClick={onOpenHelp}
-          title="操作ガイド & ショートカット"
-        >
-          <HelpCircle size={15} />
-        </button>
+        <input
+          ref={audioInputRef}
+          type="file"
+          accept="audio/*"
+          multiple
+          hidden
+          onChange={(e) => {
+            if (e.target.files) onImportAudio(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={projectInputRef}
+          type="file"
+          accept=".json,.hanautai.json"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onLoadProject(f);
+            e.target.value = "";
+          }}
+        />
       </div>
     </header>
   );

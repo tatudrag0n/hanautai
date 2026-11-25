@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import {
   Activity,
+  ChevronDown,
+  ChevronUp,
   Eraser,
   Headphones,
   MousePointer2,
@@ -28,6 +30,7 @@ import type {
   Track,
 } from "../../types/studio";
 import { RotaryKnob } from "../common/RotaryKnob";
+import { useIsMobile } from "../../hooks/useIsMobile";
 import { PitchEditorCanvas, type PitchTool } from "./PitchEditorCanvas";
 
 interface PitchStudioProps {
@@ -77,6 +80,9 @@ export const PitchStudio: React.FC<PitchStudioProps> = ({
   onStartRecord,
 }) => {
   const [tool, setTool] = useState<PitchTool>("move");
+  const isMobile = useIsMobile();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const showMore = !isMobile || moreOpen;
   const [selectedBlobIds, setSelectedBlobIds] = useState<string[]>([]);
 
   const pitch = track.pitch;
@@ -296,6 +302,18 @@ export const PitchStudio: React.FC<PitchStudioProps> = ({
           </div>
         </div>
 
+        {/* Mobile: key & preset items collapse behind one toggle */}
+        <button
+          type="button"
+          className="tool-chip pitch-more-toggle"
+          onClick={() => setMoreOpen((v) => !v)}
+          aria-expanded={moreOpen}
+        >
+          キー・プリセット {moreOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        </button>
+
+        {showMore && (
+        <>
         {/* Key & Scale Bar */}
         <div className="pitch-section key-section">
           <div className="key-selectors">
@@ -406,8 +424,9 @@ export const PitchStudio: React.FC<PitchStudioProps> = ({
             </button>
           </div>
         </div>
+        </>
+        )}
       </div>
-
       {/* Tool Strip & Selected Note Inspector */}
       <div className="pitch-toolbar">
         <div className="tool-group">

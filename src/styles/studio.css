@@ -2719,3 +2719,32 @@ select {
 :root[data-theme="light"] .mode-pill.active {
   color: #0369a1;
 }
+
+/* ---- Unified menu & collapsible pitch items ---- */
+.menu-label {
+  padding: 6px 10px 2px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.dropdown-menu.main-menu {
+  min-width: 252px;
+}
+.pitch-more-toggle {
+  display: none;
+}
+@media (max-width: 820px) {
+  .pitch-more-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  /* The unified Menu button keeps its text label on phones. */
+  .topbar-actions .menu-main-btn span {
+    display: inline;
+  }
+  .dropdown-menu.main-menu {
+    min-width: min(270px, 88vw);
+  }
+}
