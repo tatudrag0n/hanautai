@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Activity,
   ChevronDown,
@@ -60,6 +60,9 @@ interface PitchStudioProps {
   onSplitBlob: (clipId: string, blobId: string, time: number) => void;
   onAutoDetectKey: () => void;
   onApplyReferencePitch: (file: File) => void;
+  onAnalyzeTempo: () => number | null;
+  onStretchToTempo: () => void;
+  onSetProjectBpm: (bpm: number) => void;
   onGenerateHarmony: (semitones: number) => void;
   onStartRecord: () => void;
 }
@@ -79,6 +82,9 @@ export const PitchStudio: React.FC<PitchStudioProps> = ({
   onSplitBlob,
   onAutoDetectKey,
   onApplyReferencePitch,
+  onAnalyzeTempo,
+  onStretchToTempo,
+  onSetProjectBpm,
   onGenerateHarmony,
   onStartRecord,
 }) => {
@@ -87,6 +93,10 @@ export const PitchStudio: React.FC<PitchStudioProps> = ({
   const [moreOpen, setMoreOpen] = useState(false);
   const showMore = !isMobile || moreOpen;
   const refFileInputRef = useRef<HTMLInputElement>(null);
+  const [detectedBpm, setDetectedBpm] = useState<number | null>(null);
+  useEffect(() => {
+    setDetectedBpm(null);
+  }, [clip?.id]);
   const [selectedBlobIds, setSelectedBlobIds] = useState<string[]>([]);
 
   const pitch = track.pitch;
@@ -199,6 +209,34 @@ export const PitchStudio: React.FC<PitchStudioProps> = ({
           >
             このクリップをピッチ解析する
           </button>
+          <button
+            type="button"
+            className="mini-btn"
+            onClick={() => setDetectedBpm(onAnalyzeTempo())}
+            title="このクリップのテンポ（BPM）を解析します"
+          >
+            テンポ解析
+          </button>
+          {detectedBpm !== null && Math.abs(detectedBpm - bpm) >= 0.5 && (
+            <>
+              <button
+                type="button"
+                className="mini-btn"
+                onClick={onStretchToTempo}
+                title="クリップをタイムストレッチしてプロジェクトのテンポに合わせます（ピッチは変わりません）"
+              >
+                {detectedBpm}→{bpm} BPMに調整
+              </button>
+              <button
+                type="button"
+                className="mini-btn"
+                onClick={() => onSetProjectBpm(detectedBpm)}
+                title="プロジェクト全体のテンポを検出値に変更します"
+              >
+                プロジェクトを{detectedBpm} BPMに
+              </button>
+            </>
+          )}
           {vocalTracksWithAnalysis.map((vt) => (
             <button
               key={vt.id}
@@ -561,6 +599,34 @@ export const PitchStudio: React.FC<PitchStudioProps> = ({
               e.target.value = "";
             }}
           />
+          <button
+            type="button"
+            className="mini-btn"
+            onClick={() => setDetectedBpm(onAnalyzeTempo())}
+            title="このクリップのテンポ（BPM）を解析します"
+          >
+            テンポ解析
+          </button>
+          {detectedBpm !== null && Math.abs(detectedBpm - bpm) >= 0.5 && (
+            <>
+              <button
+                type="button"
+                className="mini-btn"
+                onClick={onStretchToTempo}
+                title="クリップをタイムストレッチしてプロジェクトのテンポに合わせます（ピッチは変わりません）"
+              >
+                {detectedBpm}→{bpm} BPMに調整
+              </button>
+              <button
+                type="button"
+                className="mini-btn"
+                onClick={() => onSetProjectBpm(detectedBpm)}
+                title="プロジェクト全体のテンポを検出値に変更します"
+              >
+                プロジェクトを{detectedBpm} BPMに
+              </button>
+            </>
+          )}
           <button type="button" className="mini-btn" onClick={handleSnapAll}>
             全体吸着
           </button>

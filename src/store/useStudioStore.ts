@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { audioEngine } from "../audio/audioEngine";
 import { buildAutoMixProject } from "../audio/autoMix";
 import { alignBlobsToReference } from "../audio/referencePitch";
+import { detectTempo } from "../dsp/tempo";
+import { timeStretchChannels } from "../dsp/timeStretch";
 import {
   defaultMaster,
   defaultPitchSettings,
@@ -577,6 +579,94 @@ export function useStudioStore() {
       }
     },
     [project.tracks, updateClipBlobs, updateTrackPitch],
+  );
+
+  const analyzeClipTempo = useCallback(
+    (trackId: string, clipId: string | null): number | null => {
+      const track = project.tracks.find((t) => t.id === trackId);
+      const clip = track?.clips.find((c) => c.id === clipId) ?? track?.clips[0];
+      if (!track || !clip) {
+        setStatusMessage("テンポ解析: 対象クリップがありません");
+        return null;
+      }
+      const est = detectTempo(clip.rawChannels, clip.sampleRate);
+      if (!est) {
+        setStatusMessage("テンポ解析: テンポを検出できませんでした（無音または短すぎるクリップ）");
+        return null;
+      }
+      setStatusMessage(
+        `テンポ解析: 約 ${est.bpm} BPM（確信度 ${Math.round(est.confidence * 100)}%）— プロジェクトは ${project.bpm} BPM`,
+      );
+      return est.bpm;
+    },
+    [project.tracks, project.bpm],
+  );
+
+  const stretchClipToProjectTempo = useCallback(
+    (trackId: string, clipId: string | null) => {
+      const track = project.tracks.find((t) => t.id === trackId);
+      const clip = track?.clips.find((c) => c.id === clipId) ?? track?.clips[0];
+      if (!track || !clip) {
+        setStatusMessage("テンポ調整: 対象クリップがありません");
+        return;
+      }
+      const est = detectTempo(clip.rawChannels, clip.sampleRate);
+      if (!est) {
+        setStatusMessage("テンポ調整: テンポを検出できませんでした");
+        return;
+      }
+      if (est.confidence < 0.6) {
+        setStatusMessage(
+          `テンポ調整: 検出 ${est.bpm} BPM の確信度が低い（${Math.round(est.confidence * 100)}%）ため、誤検出の恐れがあるので調整しませんでした`,
+        );
+        return;
+      }
+      const factor = est.bpm / project.bpm;
+      if (Math.abs(factor - 1) < 0.01) {
+        setStatusMessage(`テンポ調整: 検出 ${est.bpm} BPM はプロジェクト ${project.bpm} BPM とほぼ一致しています`);
+        return;
+      }
+      if (factor < 0.5 || factor > 2) {
+        setStatusMessage(`テンポ調整: 検出 ${est.bpm} BPM はプロジェクト ${project.bpm} BPM と差が大きすぎます`);
+        return;
+      }
+      const stretched = timeStretchChannels(clip.rawChannels, factor);
+      const built = buildClipFromAudio({
+        name: clip.name,
+        channels: stretched,
+        sampleRate: clip.sampleRate,
+        startTime: clip.startTime,
+        pitchSettings: track.pitch,
+        runPitchAnalysis: true,
+      });
+      const aligned = alignBlobsToReference(
+        built.blobs,
+        clip.blobs,
+        clip.totalDuration,
+        built.totalDuration,
+        track.pitch,
+      );
+      const finalClip: AudioClip = {
+        ...built,
+        id: clip.id,
+        blobs: aligned.blobs,
+        gainDb: clip.gainDb,
+        fadeIn: clip.fadeIn,
+        fadeOut: clip.fadeOut,
+        duration: clip.duration * factor,
+        offset: clip.offset * factor,
+        drawnPitch: clip.drawnPitch.map((pt) => ({ ...pt, time: pt.time * factor })),
+      };
+      updateTrack(
+        trackId,
+        (t) => ({ ...t, clips: t.clips.map((c) => (c.id === clip.id ? finalClip : c)) }),
+        { recordHistory: true, reprocessPitch: true },
+      );
+      setStatusMessage(
+        `テンポ調整完了 — 検出 ${est.bpm} BPM のクリップをプロジェクト ${project.bpm} BPM に合わせてストレッチしました`,
+      );
+    },
+    [project.tracks, project.bpm, updateTrack],
   );
 
   const autoMix = useCallback(() => {
@@ -1165,6 +1255,8 @@ export function useStudioStore() {
     autoDetectKey,
     autoMix,
     applyReferencePitch,
+    analyzeClipTempo,
+    stretchClipToProjectTempo,
     togglePlay,
     stopTransport,
     seekTransport,

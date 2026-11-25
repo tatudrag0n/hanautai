@@ -83,6 +83,8 @@ export const App: React.FC = () => {
     autoDetectKey,
     autoMix,
     applyReferencePitch,
+    analyzeClipTempo,
+    stretchClipToProjectTempo,
     togglePlay,
     stopTransport,
     seekTransport,
@@ -415,6 +417,9 @@ export const App: React.FC = () => {
                 }
                 onAutoDetectKey={() => autoDetectKey(selectedTrack.id)}
                 onApplyReferencePitch={(file) => applyReferencePitch(selectedTrack.id, selectedClip?.id ?? null, file)}
+                onAnalyzeTempo={() => analyzeClipTempo(selectedTrack.id, selectedClip?.id ?? null)}
+                onStretchToTempo={() => stretchClipToProjectTempo(selectedTrack.id, selectedClip?.id ?? null)}
+                onSetProjectBpm={(bpm) => updateProject((prev) => ({ ...prev, bpm }), true)}
                 onGenerateHarmony={(semi) =>
                   duplicateHarmonyTrack(selectedTrack.id, semi)
                 }
