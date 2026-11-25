@@ -1,20 +1,30 @@
 {
-  "name": "hanautai",
-  "version": "1.0.0",
+  "name": "hanautai-mix-studio",
+  "version": "2.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "start": "serve -l 8088 .",
-    "test": "node --test tests/unit/*.test.js",
-    "test:browser": "playwright test"
+    "dev": "vite",
+    "start": "vite --host 0.0.0.0 --port 5173",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "engines": {
     "node": ">=22"
   },
-  "devDependencies": {
-    "@playwright/test": "1.58.2",
-    "serve": "14.2.8"
-  },
   "dependencies": {
-    "tone": "14.8.49"
+    "lucide-react": "^1.79.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.1",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
   }
 }

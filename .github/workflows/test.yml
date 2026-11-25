@@ -13,5 +13,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      # Use the Chrome binary included in the GitHub-hosted runner image.
-      - run: CHROMIUM_PATH="$(command -v google-chrome)" npm run test:browser
+      - run: npm run build
