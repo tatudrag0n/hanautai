@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { audioEngine } from "../audio/audioEngine";
 import { buildAutoMixProject } from "../audio/autoMix";
+import { alignBlobsToReference } from "../audio/referencePitch";
 import {
   defaultMaster,
   defaultPitchSettings,
@@ -529,6 +530,53 @@ export function useStudioStore() {
       );
     },
     [project.tracks, updateTrackPitch],
+  );
+
+  const applyReferencePitch = useCallback(
+    async (trackId: string, clipId: string | null, file: File) => {
+      const track = project.tracks.find((t) => t.id === trackId);
+      const clip =
+        track?.clips.find((c) => c.id === clipId) ?? track?.clips[0];
+      if (!track || !clip) {
+        setStatusMessage("参照ピッチ: 対象クリップがありません");
+        return;
+      }
+      if (!clip.analysis) {
+        setStatusMessage("参照ピッチ: 対象クリップのピッチ解析がまだです");
+        return;
+      }
+      try {
+        setStatusMessage(`参照音声「${file.name}」を解析中...`);
+        const buf = await file.arrayBuffer();
+        const { channels, sampleRate } = await audioEngine.decodeAudioFile(buf);
+        const refAnalysis = analyzePitch(
+          channels,
+          sampleRate,
+          track.pitch.keyRoot,
+          track.pitch.scale,
+          track.pitch.customNotes,
+        );
+        if (refAnalysis.blobs.length === 0) {
+          setStatusMessage("参照ピッチ: 参照音声からノートを検出できませんでした");
+          return;
+        }
+        const result = alignBlobsToReference(
+          clip.blobs,
+          refAnalysis.blobs,
+          refAnalysis.duration,
+          clip.totalDuration,
+          track.pitch,
+        );
+        updateTrackPitch(trackId, { enabled: true, bypass: false }, { recordHistory: false });
+        updateClipBlobs(trackId, clip.id, () => result.blobs, true);
+        setStatusMessage(
+          `参照ピッチを適用 — ${result.matched}ノートを参照に合わせました${result.unmatched > 0 ? `（${result.unmatched}ノートは対応する参照なし）` : ""}`,
+        );
+      } catch {
+        setStatusMessage("参照ピッチ: 参照音声を読み込めませんでした");
+      }
+    },
+    [project.tracks, updateClipBlobs, updateTrackPitch],
   );
 
   const autoMix = useCallback(() => {
@@ -1116,6 +1164,7 @@ export function useStudioStore() {
     splitBlobAtTime,
     autoDetectKey,
     autoMix,
+    applyReferencePitch,
     togglePlay,
     stopTransport,
     seekTransport,

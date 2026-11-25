@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Activity,
   ChevronDown,
@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Scissors,
   Sparkles,
+  Upload,
   Wand2,
 } from "lucide-react";
 import { PITCH_PRESETS } from "../../audio/presets";
@@ -58,6 +59,7 @@ interface PitchStudioProps {
   ) => void;
   onSplitBlob: (clipId: string, blobId: string, time: number) => void;
   onAutoDetectKey: () => void;
+  onApplyReferencePitch: (file: File) => void;
   onGenerateHarmony: (semitones: number) => void;
   onStartRecord: () => void;
 }
@@ -76,6 +78,7 @@ export const PitchStudio: React.FC<PitchStudioProps> = ({
   onUpdateDrawnPitch,
   onSplitBlob,
   onAutoDetectKey,
+  onApplyReferencePitch,
   onGenerateHarmony,
   onStartRecord,
 }) => {
@@ -83,6 +86,7 @@ export const PitchStudio: React.FC<PitchStudioProps> = ({
   const isMobile = useIsMobile();
   const [moreOpen, setMoreOpen] = useState(false);
   const showMore = !isMobile || moreOpen;
+  const refFileInputRef = useRef<HTMLInputElement>(null);
   const [selectedBlobIds, setSelectedBlobIds] = useState<string[]>([]);
 
   const pitch = track.pitch;
@@ -538,6 +542,25 @@ export const PitchStudio: React.FC<PitchStudioProps> = ({
         </div>
 
         <div className="batch-actions">
+          <button
+            type="button"
+            className="mini-btn"
+            onClick={() => refFileInputRef.current?.click()}
+            title="分離済みの参照ボーカル音声を読み込み、そのピッチに合わせて補正します（音声そのものは保存されません）"
+          >
+            <Upload size={12} /> 参照ピッチ取込
+          </button>
+          <input
+            ref={refFileInputRef}
+            type="file"
+            accept="audio/*"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onApplyReferencePitch(f);
+              e.target.value = "";
+            }}
+          />
           <button type="button" className="mini-btn" onClick={handleSnapAll}>
             全体吸着
           </button>

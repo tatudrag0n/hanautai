@@ -82,6 +82,7 @@ export const App: React.FC = () => {
     splitBlobAtTime,
     autoDetectKey,
     autoMix,
+    applyReferencePitch,
     togglePlay,
     stopTransport,
     seekTransport,
@@ -413,6 +414,7 @@ export const App: React.FC = () => {
                   splitBlobAtTime(selectedTrack.id, clipId, blobId, t)
                 }
                 onAutoDetectKey={() => autoDetectKey(selectedTrack.id)}
+                onApplyReferencePitch={(file) => applyReferencePitch(selectedTrack.id, selectedClip?.id ?? null, file)}
                 onGenerateHarmony={(semi) =>
                   duplicateHarmonyTrack(selectedTrack.id, semi)
                 }
